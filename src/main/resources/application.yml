@@ -1,0 +1,19 @@
+spring:
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    servlet:
+      content-type: text/html
+    mode: HTML
+    encoding: UTF-8
+#  redis:
+#    host: 192.168.174.129
+#    port: 6379
+#    password: 5321
+#    timeout: 10000
+#    jedis:
+#      pool:
+#        max-active: 16
+#        max-idle: 8
+#        min-idle: 0
+#        max-wait: -1
