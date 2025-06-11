@@ -1,10 +1,11 @@
 package com.steam_discount.steam_discount.model;
 
-import java.io.Serializable;
-import java.util.Objects;
-
 import lombok.Data;
 import lombok.experimental.Accessors;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * steam_discount
@@ -15,10 +16,10 @@ import lombok.experimental.Accessors;
  */
 @Data
 @Accessors(chain = true)
-public class Goods implements Serializable, Comparable<Goods> {
+public class Goods extends ResultVO<Goods> implements Serializable, Comparable<Goods> {
 
-    private static final long serialVersionUID = -9000807055864373573L;
-
+    @Serial
+    private static final long serialVersionUID = 5782755258136162465L;
     private String id;
 
     private String game;

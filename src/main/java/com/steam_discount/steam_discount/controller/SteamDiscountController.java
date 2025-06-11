@@ -1,15 +1,18 @@
 package com.steam_discount.steam_discount.controller;
 
+import com.steam_discount.steam_discount.model.Boy;
 import com.steam_discount.steam_discount.model.Goods;
-import com.steam_discount.steam_discount.model.Msg;
+import com.steam_discount.steam_discount.model.ResultVO;
 import com.steam_discount.steam_discount.service.BuffJsonService;
+import com.steam_discount.steam_discount.util.ResultVoUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.*;
 
-import javax.annotation.Resource;
 import java.util.List;
 
 /**
@@ -19,6 +22,7 @@ import java.util.List;
  * @author yoake
  * @date 2021/5/18 14:56
  */
+@Tag(name = "测试")
 @Slf4j
 @RestController
 public class SteamDiscountController {
@@ -29,31 +33,48 @@ public class SteamDiscountController {
     @Resource
     private RedisTemplate<String, List<Goods>> redisTemplate;
 
-    @RequestMapping(value = "/hello", method = RequestMethod.GET)
-    public Msg hello() {
-        return Msg.success();
+    @GetMapping("/hello")
+    public ResultVO<Boy> hello(@ModelAttribute Boy boy) {
+        return ResultVoUtil.success(boy);
     }
 
-    @RequestMapping(value = "/addCache", method = RequestMethod.GET)
-    public Msg addCache() {
+    @GetMapping("/addCache")
+    public ResultVO<String> addCache() {
         try {
             buffJsonService.writeJson(0.8);
         } catch (Exception e) {
-            e.printStackTrace();
-            return Msg.fail("error");
+            log.error("", e);
+            return ResultVoUtil.fail("error");
         }
-        return Msg.success();
+        return ResultVoUtil.success();
     }
 
-    @RequestMapping(value = "/getRank", method = RequestMethod.GET)
-    public Msg getRank() {
+    @GetMapping("/getRank")
+    public ResultVO<List<Goods>> getRank() {
         List<Goods> goods = redisTemplate.opsForValue().get("GOODS:RANK");
-        return Msg.success().add("goods", goods);
+        return ResultVoUtil.success(goods);
     }
 
-    @RequestMapping(value = "/writeFile", method = RequestMethod.GET)
-    public Msg writeFile() {
+    @GetMapping("/writeFile")
+    public ResultVO<Void> writeFile() {
         buffJsonService.writeJson(0.8);
-        return Msg.success();
+        return ResultVoUtil.success();
     }
+
+    @Operation(summary = "测试get")
+    @GetMapping("/get")
+    public ResultVO<List<String>> get(@RequestParam(required = false) List<String> id) {
+        if (CollectionUtils.isEmpty(id)) {
+            return ResultVoUtil.fail("失败");
+        }
+        return ResultVoUtil.success(id);
+    }
+
+    @Operation(summary = "测试post")
+    @PostMapping({"/post", "/post/{id}"})
+    public ResultVO<String> post(@PathVariable(required = false) String id) {
+        return ResultVoUtil.success(id);
+    }
+
+
 }

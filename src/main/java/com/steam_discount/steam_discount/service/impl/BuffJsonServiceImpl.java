@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.Resource;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,20 +33,23 @@ import java.util.concurrent.Executor;
 @Service
 @Slf4j
 public class BuffJsonServiceImpl implements BuffJsonService {
-    private final static String session = "";
-    private final static String csrfToken = "";
+    private final static String session = "session=1-dUoMjaofClt14Sz-alZ0U5Ef-h9HcMZax7_MxyZdvCJh2046405441; HttpOnly; Path=/";
+    private final static String csrfToken = "csrf_token=ImYzOTkyZjJkN2YzZGMyNmVjOTdlMGI2OTMwMjU1YzJlOGJhNWUwYTEi.Z9Z_RQ.XuE22-ApvMeS8_hMhOTdwawGaNc; Path=/";
 
-    private final static Object[] prices = {9, 10.5};
+    private final static Object[] prices = {50, 300};
 //    private final static String quality = "&quality=normal";
     private final static String quality = "&quality=normal";
-    private final static String rarity = "&rarity=mythical_weapon";
+    private final static String rarity = "&rarity=ancient_weapon";
     private final static String categoryGroup = "&category_group=rifle";
 
-    @Resource
-    private RestTemplate restTemplate;
+    private final RestTemplate restTemplate;
 
-    @Resource(name = "getJsonThreadPool")
-    private Executor getJsonThreadPool;
+    private final Executor getJsonThreadPool;
+
+    public BuffJsonServiceImpl(RestTemplate restTemplate, Executor getJsonThreadPool) {
+        this.restTemplate = restTemplate;
+        this.getJsonThreadPool = getJsonThreadPool;
+    }
 
     @Override
     public void writeJson(double customDiscount) {
@@ -68,7 +70,7 @@ public class BuffJsonServiceImpl implements BuffJsonService {
             getJsonThreadPool.execute(() -> {
                 try {
                     if (finalPageNum > 10) {
-                        Thread.sleep(500);
+                        Thread.sleep(1500);
                     }
                     getJsonResult(finalPageNum, sets, urlBase, customDiscount);
                 } catch (Exception e) {
@@ -95,7 +97,7 @@ public class BuffJsonServiceImpl implements BuffJsonService {
     }
 
     private void fileToLocal(String resultText) {
-        String filePath = "G:\\Downloads\\steam.json";
+        String filePath = "E:\\Downloads\\steam.json";
         FileWriter writer = null;
         try {
             writer = new FileWriter(filePath);
