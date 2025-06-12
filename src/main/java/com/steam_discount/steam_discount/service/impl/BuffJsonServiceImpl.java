@@ -1,18 +1,24 @@
 package com.steam_discount.steam_discount.service.impl;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.steam_discount.steam_discount.model.Goods;
+import com.steam_discount.steam_discount.client.BuffClient;
+import com.steam_discount.steam_discount.constant.Constant;
+import com.steam_discount.steam_discount.enums.CategoryGroupEnum;
+import com.steam_discount.steam_discount.enums.ExteriorEnum;
+import com.steam_discount.steam_discount.enums.QualityEnum;
+import com.steam_discount.steam_discount.enums.RarityEnum;
+import com.steam_discount.steam_discount.model.GoodsDTO;
+import com.steam_discount.steam_discount.model.PageResult;
+import com.steam_discount.steam_discount.model.ResultVO;
+import com.steam_discount.steam_discount.request.DiscountRequest;
+import com.steam_discount.steam_discount.request.Query163Request;
 import com.steam_discount.steam_discount.service.BuffJsonService;
 import com.steam_discount.steam_discount.util.BigDecimalUtil;
+import com.steam_discount.steam_discount.util.EnumUtil;
+import com.steam_discount.steam_discount.util.ResponseUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -33,158 +39,115 @@ import java.util.concurrent.Executor;
 @Service
 @Slf4j
 public class BuffJsonServiceImpl implements BuffJsonService {
-    private final static String session = "session=1-dUoMjaofClt14Sz-alZ0U5Ef-h9HcMZax7_MxyZdvCJh2046405441; HttpOnly; Path=/";
-    private final static String csrfToken = "csrf_token=ImYzOTkyZjJkN2YzZGMyNmVjOTdlMGI2OTMwMjU1YzJlOGJhNWUwYTEi.Z9Z_RQ.XuE22-ApvMeS8_hMhOTdwawGaNc; Path=/";
-
-    private final static Object[] prices = {50, 300};
-//    private final static String quality = "&quality=normal";
-    private final static String quality = "&quality=normal";
-    private final static String rarity = "&rarity=ancient_weapon";
-    private final static String categoryGroup = "&category_group=rifle";
-
-    private final RestTemplate restTemplate;
+    @Value("${save.file.path}")
+    private String filePath;
 
     private final Executor getJsonThreadPool;
 
-    public BuffJsonServiceImpl(RestTemplate restTemplate, Executor getJsonThreadPool) {
-        this.restTemplate = restTemplate;
+    private final BuffClient buffClient;
+
+    public BuffJsonServiceImpl(Executor getJsonThreadPool, BuffClient buffClient) {
         this.getJsonThreadPool = getJsonThreadPool;
+        this.buffClient = buffClient;
     }
+
 
     @Override
-    public void writeJson(double customDiscount) {
+    public Set<GoodsDTO> getGoods(DiscountRequest request) {
         int pageNum = 1;
-
-        String str = "https://buff.163.com/api/market/goods?game=csgo&min_price=%s&max_price=%s&sort_by=price.asc&_=1623511969929&pageSize=80"
-                + quality + rarity +
-//                categoryGroup +
-                "&page_num=";
-        String urlBase = String.format(str, prices);
-
-        Set<Goods> sets = new TreeSet<>();
-        int totalPage = getJsonResult(pageNum, sets, urlBase, customDiscount);
+        request.setPageNum(pageNum);
+        PageResult<GoodsDTO> page = getGoodsDTOPageResult(request);
+        Set<GoodsDTO> goodsDTOS = new TreeSet<>(page.getItems());
+        int totalPage = page.getTotalPage();
         log.info("共{}页", totalPage);
-        CountDownLatch latch = new CountDownLatch(totalPage - 1);
-        for (pageNum = 2; pageNum <= totalPage; pageNum++) {
-            int finalPageNum = pageNum;
-            getJsonThreadPool.execute(() -> {
-                try {
-                    if (finalPageNum > 10) {
-                        Thread.sleep(1500);
-                    }
-                    getJsonResult(finalPageNum, sets, urlBase, customDiscount);
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
         try {
-            latch.await();
+            int startPage = pageNum + 1;
+            CountDownLatch latch = new CountDownLatch(totalPage - startPage + 1);
+
+            for (int i = startPage; i <= totalPage; i++) {
+                final int currentPage = i;
+                getJsonThreadPool.execute(() -> {
+                    try {
+                        if (currentPage > 10) {
+                            Thread.sleep(1500);
+                        }
+                        request.setPageNum(currentPage);
+                        PageResult<GoodsDTO> goodsDTOPageResult = getGoodsDTOPageResult(request);
+                        goodsDTOS.addAll(goodsDTOPageResult.getItems());
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                        log.error("任务执行异常，页码: {}", currentPage, ex);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+            latch.await(); // 等待所有任务完成
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt(); // 恢复中断状态
+            log.error("等待线程中断", e);
+        } catch (Exception e) {
+            log.error("执行过程中出现异常", e);
         }
-        generateResult(sets);
+
+        return goodsDTOS;
     }
 
-    private void generateResult(Set<Goods> sets) {
-        List<Goods> lists = new ArrayList<>(sets);
-        List<Goods> result = lists.subList(0, Math.min(lists.size(), 50));
+    public void saveFile(Set<GoodsDTO> sets) {
+        List<GoodsDTO> lists = new ArrayList<>(sets);
+        List<GoodsDTO> result = lists.subList(0, Math.min(lists.size(), 50));
+        //TODO 做一个手动json化，显示中文备注
         String resultText = JSON.toJSONString(result);
         fileToLocal(resultText);
         log.info("总{}条,过滤剩余{}条", sets.size(), result.size());
     }
 
-    private void fileToLocal(String resultText) {
-        String filePath = "E:\\Downloads\\steam.json";
-        FileWriter writer = null;
-        try {
-            writer = new FileWriter(filePath);
-            writer.write(resultText);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (writer != null) {
-                    writer.flush();
-                }
-                if (writer != null) {
-                    writer.close();
-                }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-        }
-        log.info("写入完毕");
-    }
-
-    private int getJsonResult(int pageNum, Set<Goods> sets, String urlBase, double customDiscount) {
-        String url = urlBase + pageNum;
-        HttpHeaders headers = new HttpHeaders();
-
-        List<String> cookies = new ArrayList<>();
-        /* 登录获取Cookie 这里是直接给Cookie，可使用下方的login方法拿到Cookie给入*/
-        //在 header 中存入cookies
-        cookies.add(session);
-        cookies.add(csrfToken);
-        headers.put(HttpHeaders.COOKIE, cookies);
-
-        HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
-        String s = response.getBody();
-        JSONObject result = (JSONObject) JSON.parse(s);
-        assert result != null;
-        log.info("当前第{}页", pageNum);
-        JSONObject data = result.getJSONObject("data");
-        Integer totalPage = data.getObject("total_page", Integer.class);
-        addList(sets, data, customDiscount);
-        return totalPage;
-    }
-
-    private void addList(Set<Goods> sets, JSONObject data, double customDiscount) {
-        JSONArray items = data.getJSONArray("items");
-        for (int i = 0; i < items.size(); i++) {
-            JSONObject result = items.getJSONObject(i);
-            double sellMinPrice = result.getObject("sell_min_price", Double.class);
-            String id = result.getObject("id", String.class);
-            String game = result.getObject("game", String.class);
-            String name = result.getObject("name", String.class);
-            double buyMaxPrice = result.getObject("buy_max_price", Double.class);
-            int bugNum = result.getObject("buy_num", Integer.class);
-            double quickPrice = result.getObject("quick_price", Double.class);
-            int sellNum = result.getObject("sell_num", Integer.class);
-            JSONObject goodsInfo = result.getJSONObject("goods_info");
-            double steamPriceCny = goodsInfo.getObject("steam_price_cny", Double.class);
-            double discount = BigDecimalUtil.evalDiscount(sellMinPrice / steamPriceCny);
+    private PageResult<GoodsDTO> getGoodsDTOPageResult(DiscountRequest request) {
+        Query163Request query163Request = getQuery163Request(request);
+        ResultVO<PageResult<GoodsDTO>> resultVO = buffClient.getGoods(query163Request);
+        log.info("{}", ResponseUtil.getDataOrThrow(resultVO).getTotalPage());
+        PageResult<GoodsDTO> page = ResponseUtil.getDataOrThrow(resultVO);
+        page.getItems().parallelStream().forEach(goods -> {
+            double steamPriceCny = goods.getGoodsInfo().getSteamPriceCny();
+            double discount = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / goods.getGoodsInfo().getSteamPriceCny());
             double steamBalanceAfterTax = BigDecimalUtil.evalPrice(steamPriceCny * 0.8695);
-            double steamPriceSellThird = BigDecimalUtil.evalPrice(steamBalanceAfterTax * customDiscount);
-            double discountAfterTax = BigDecimalUtil.evalDiscount(sellMinPrice / steamBalanceAfterTax);
-            double discountSellThird = BigDecimalUtil.evalDiscount(sellMinPrice / steamPriceSellThird);
-            if (bugNum < 5 || discount >= 0.75) {
-                continue;
-            }
-            String url = "https://buff.163.com/market/goods?goods_id=" + id + "&from=market#tab=selling";
-            Goods goods = new Goods()
-                    .setId(id)
-                    .setName(name)
-                    .setGame(game)
-                    .setBuyMaxPrice(buyMaxPrice)
-                    .setBugNum(bugNum)
-                    .setQuickPrice(quickPrice)
-                    .setSellMinPrice(sellMinPrice)
-                    .setSellNum(sellNum)
-                    .setSteamPriceCny(steamPriceCny)
-                    .setSteamPriceCnyProfit(BigDecimalUtil.evalPrice(steamPriceCny - sellMinPrice))
+            double discountAfterTax = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / steamBalanceAfterTax);
+            double steamPriceSellThird = BigDecimalUtil.evalPrice(steamBalanceAfterTax * request.getCustomDiscount());
+            double discountSellThird = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / steamPriceSellThird);
+            goods.setSteamPriceCnyProfit(BigDecimalUtil.evalPrice(steamPriceCny - goods.getSellMinPrice()))
                     .setDiscount(discount)
                     .setDiscountAfterTax(discountAfterTax)
                     .setSteamBalanceAfterTax(steamBalanceAfterTax)
-                    .setSteamBalanceAfterTaxProfit(BigDecimalUtil.evalPrice(steamBalanceAfterTax - sellMinPrice))
+                    .setSteamBalanceAfterTaxProfit(BigDecimalUtil.evalPrice(steamBalanceAfterTax - goods.getSellMinPrice()))
                     .setDiscountSellThird(discountSellThird)
                     .setSteamPriceSellThird(steamPriceSellThird)
-                    .setSteamPriceSellThirdProfit(BigDecimalUtil.evalPrice(steamPriceSellThird - sellMinPrice))
-                    .setBuffUrl(url);
-            sets.add(goods);
+                    .setSteamPriceSellThirdProfit(BigDecimalUtil.evalPrice(steamPriceSellThird - goods.getSellMinPrice()))
+                    .setBuffUrl(Constant.url.formatted(goods.getId()));
+        });
+        return page;
+    }
+
+    private static Query163Request getQuery163Request(DiscountRequest request) {
+        Query163Request query163Request = new Query163Request();
+        query163Request.setGame("csgo");
+        query163Request.setPageNum(request.getPageNum());
+        query163Request.setCategoryGroup(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
+        query163Request.setRarity(EnumUtil.getDesc(request.getRarity(), RarityEnum.class));
+        query163Request.setQuality(EnumUtil.getDesc(request.getQuality(), QualityEnum.class));
+        query163Request.setExterior(EnumUtil.getDesc(request.getExterior(), ExteriorEnum.class));
+        query163Request.setTab("selling");
+        query163Request.setMinPrice(request.getMinPrice());
+        query163Request.setMaxPrice(request.getMaxPrice());
+        query163Request.setTimestamp(System.currentTimeMillis());
+        return query163Request;
+    }
+
+    private void fileToLocal(String resultText) {
+        try (FileWriter writer = new FileWriter(filePath)) {
+            writer.write(resultText);
+        } catch (IOException e) {
+            log.error("写入失败");
         }
+        log.info("写入完毕");
     }
 }

@@ -20,7 +20,6 @@ class BuffJsonServiceTest {
 
     @Test
     public void getJson() {
-        buffJsonService.writeJson(0.8);
     }
 
     @Test

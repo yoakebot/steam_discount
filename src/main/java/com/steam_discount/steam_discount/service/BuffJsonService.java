@@ -1,5 +1,10 @@
 package com.steam_discount.steam_discount.service;
 
+import com.steam_discount.steam_discount.model.GoodsDTO;
+import com.steam_discount.steam_discount.request.DiscountRequest;
+
+import java.util.Set;
+
 /**
  * steam_discount
  * BuffJsonService
@@ -9,10 +14,7 @@ package com.steam_discount.steam_discount.service;
  */
 public interface BuffJsonService {
 
-    /**
-     * 结果写json文件
-     *
-     * @param customDiscount 自定义出售折扣
-     */
-    void writeJson(double customDiscount);
+    Set<GoodsDTO> getGoods(DiscountRequest request);
+
+    void saveFile(Set<GoodsDTO> sets);
 }

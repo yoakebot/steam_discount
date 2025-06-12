@@ -16,10 +16,10 @@ public final class ResultVoUtil {
     }
 
     public static <T> ResultVO<T> fail(String message) {
-        return new ResultVO<>(-1, message);
+        return new ResultVO<>("FAIL", message);
     }
 
-    public static <T> ResultVO<T> fail(int code, String message) {
+    public static <T> ResultVO<T> fail(String code, String message) {
         return new ResultVO<>(code, message);
     }
 }

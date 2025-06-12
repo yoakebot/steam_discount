@@ -2,6 +2,8 @@ package com.steam_discount.steam_discount.util;
 
 import com.steam_discount.steam_discount.model.ResultVO;
 
+import java.util.Objects;
+
 public class ResponseUtil {
 
     public static <T> T getDataOrNull(ResultVO<T> result) {
@@ -23,7 +25,7 @@ public class ResponseUtil {
     }
 
     public static boolean isSuccess(ResultVO<?> result) {
-        return result != null && result.getCode() == 1 && result.getData() != null;
+        return result != null && Objects.equals(result.getCode(), "OK") && result.getData() != null;
     }
 
     private ResponseUtil() {

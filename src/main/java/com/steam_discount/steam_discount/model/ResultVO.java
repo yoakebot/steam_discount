@@ -12,23 +12,23 @@ import lombok.Data;
 @Data
 public class ResultVO<T> {
 
-    private int code;
+    private String code;
 
     private String msg;
 
     private T data;
 
-    public ResultVO(int code, String msg) {
+    public ResultVO(String code, String msg) {
         this.code = code;
         this.msg = msg;
     }
 
     public ResultVO(T data) {
-        this.code = 1;
+        this.code = "OK";
         this.data = data;
     }
 
     public ResultVO() {
-        this.code = 1;
+        this.code = "OK";
     }
 }
