@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public interface BuffJsonService {
 
-    Set<GoodsDTO> getGoods(DiscountRequest request);
+    void getGoods(DiscountRequest request);
 
     void saveFile(Set<GoodsDTO> sets);
 }

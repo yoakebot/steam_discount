@@ -1,5 +1,6 @@
 package com.steam.discount.util;
 
+import com.steam.discount.exception.BizException;
 import com.steam.discount.model.ResultVO;
 
 import java.util.Objects;
@@ -17,7 +18,7 @@ public class ResponseUtil {
         if (isSuccess(result)) {
             return result.getData();
         }
-        throw new RuntimeException(getMsg(result));
+        throw new BizException(getMsg(result));
     }
 
     public static String getMsg(ResultVO<?> result) {

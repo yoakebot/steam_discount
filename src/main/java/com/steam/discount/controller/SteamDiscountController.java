@@ -4,6 +4,7 @@ import com.steam.discount.model.GoodsDTO;
 import com.steam.discount.redis.RedisConstant;
 import com.steam.discount.redis.RedissonService;
 import com.steam.discount.request.DiscountRequest;
+import com.steam.discount.request.SetCookiesRequest;
 import com.steam.discount.service.BuffJsonService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,25 +40,36 @@ public class SteamDiscountController {
     @Resource
     private RedisTemplate<String, List<GoodsDTO>> redisTemplate;
 
-    @Operation(summary = "获取折扣")
-    @GetMapping("/get")
-    @Cacheable(cacheNames = "getDiscount", key = "#request.toString()")
-    public Set<GoodsDTO> getDiscount(@ParameterObject DiscountRequest request) {
+    @Operation(summary = "开始折扣缓存")
+    @GetMapping("/setCookies")
+    public String setCookies(@ParameterObject SetCookiesRequest request) {
         redissonService.saveList(RedisConstant.COOKIES, List.of(request.getCsrfToken(), request.getSession()));
-        Set<GoodsDTO> goods = buffJsonService.getGoods(request);
-        redissonService.saveSet(RedisConstant.SAVE_FILE, goods);
-        return goods;
+        return "OK";
+    }
+
+    @Operation(summary = "开始折扣缓存")
+    @GetMapping("/startCache")
+    @Cacheable(cacheNames = "getDiscount", key = "#request.toString()")
+    public String getDiscount(@ParameterObject DiscountRequest request) {
+        buffJsonService.getGoods(request);
+        return "OK";
+    }
+
+    @Operation(summary = "获取折扣")
+    @GetMapping("/page")
+    public Set<GoodsDTO> page() {
+        return redissonService.getSet(RedisConstant.RESULT_SET);
     }
 
     @Operation(summary = "缓存保存")
     @GetMapping("/saveFile")
     public void saveFile() {
-        Set<GoodsDTO> sets = redissonService.getSet(RedisConstant.SAVE_FILE);
+        Set<GoodsDTO> sets = redissonService.getSet(RedisConstant.SAVE_FILE_SET);
         buffJsonService.saveFile(sets);
     }
 
     @GetMapping("/rank")
     public List<GoodsDTO> getRank() {
-        return redisTemplate.opsForValue().get(RedisConstant.SAVE_FILE);
+        return redisTemplate.opsForValue().get(RedisConstant.SAVE_FILE_SET);
     }
 }

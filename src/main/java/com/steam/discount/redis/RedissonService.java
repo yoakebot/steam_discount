@@ -7,6 +7,7 @@ import org.redisson.api.RSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -19,9 +20,9 @@ public class RedissonService {
     private RedissonClient redissonClient;
 
 
-    public <T> void save(String key, T object) {
+    public <T> void save(String key, T object, Duration duration) {
         RBucket<T> bucket = redissonClient.getBucket(key);
-        bucket.set(object);
+        bucket.set(object, duration);
     }
 
     public <T> T get(String key) {
@@ -35,6 +36,13 @@ public class RedissonService {
         rList.addAll(data);
     }
 
+    public <T> void saveListExpire(String key, List<T> data, Duration duration) {
+        RList<T> rList = redissonClient.getList(key);
+        rList.clear(); // 清空旧数据（可选）
+        rList.addAll(data);
+        rList.expire(duration);
+    }
+
     public <T> List<T> getList(String key) {
         RList<T> rList = redissonClient.getList(key);
         return new ArrayList<>(rList);
@@ -44,6 +52,12 @@ public class RedissonService {
         RSet<T> rList = redissonClient.getSet(key);
         rList.clear(); // 清空旧数据（可选）
         rList.addAll(data);
+    }
+
+    public <T> void saveSetExpire(String key, Set<T> data, Duration duration) {
+        RSet<T> rList = redissonClient.getSet(key);
+        rList.addAll(data);
+        rList.expire(duration);
     }
 
     public <T> Set<T> getSet(String key) {

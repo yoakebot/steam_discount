@@ -9,6 +9,8 @@ import com.steam.discount.enums.RarityEnum;
 import com.steam.discount.model.GoodsDTO;
 import com.steam.discount.model.PageResult;
 import com.steam.discount.model.ResultVO;
+import com.steam.discount.redis.RedisConstant;
+import com.steam.discount.redis.RedissonService;
 import com.steam.discount.request.DiscountRequest;
 import com.steam.discount.request.Query163Request;
 import com.steam.discount.service.BuffJsonService;
@@ -18,15 +20,16 @@ import com.steam.discount.util.JsonUtil;
 import com.steam.discount.util.ResponseUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
 /**
@@ -46,57 +49,42 @@ public class BuffJsonServiceImpl implements BuffJsonService {
 
     private final BuffClient buffClient;
 
-    public BuffJsonServiceImpl(Executor getJsonThreadPool, BuffClient buffClient) {
+    private final RedissonService redissonService;
+
+    public BuffJsonServiceImpl(Executor getJsonThreadPool, BuffClient buffClient, RedissonService redissonService) {
         this.getJsonThreadPool = getJsonThreadPool;
         this.buffClient = buffClient;
+        this.redissonService = redissonService;
     }
 
 
+    @Async
     @Override
-    public Set<GoodsDTO> getGoods(DiscountRequest request) {
+    public void getGoods(DiscountRequest request) {
         int pageNum = 1;
         request.setPageNum(pageNum);
         PageResult<GoodsDTO> page = getGoodsDTOPageResult(request);
         Set<GoodsDTO> dtoSet = new TreeSet<>(page.getItems());
         int totalPage = page.getTotalPage();
         log.info("共{}页", totalPage);
-        try {
-            int startPage = pageNum + 1;
-            CountDownLatch latch = new CountDownLatch(totalPage - startPage + 1);
-
-            for (int i = startPage; i <= totalPage; i++) {
-                final int currentPage = i;
-                getJsonThreadPool.execute(() -> {
-                    try {
-                        if (currentPage > 10) {
-                            Thread.sleep(1500);
-                        }
-                        request.setPageNum(currentPage);
-                        PageResult<GoodsDTO> goodsDTOPageResult = getGoodsDTOPageResult(request);
-                        dtoSet.addAll(goodsDTOPageResult.getItems());
-                    } catch (InterruptedException ex) {
-                        Thread.currentThread().interrupt();
-                        log.error("任务执行异常，页码: {}", currentPage, ex);
-                    } finally {
-                        latch.countDown();
-                    }
-                });
+        int startPage = pageNum + 1;
+        for (int i = startPage; i <= totalPage; i++) {
+            request.setPageNum(i);
+            PageResult<GoodsDTO> goodsDTOPageResult = getGoodsDTOPageResult(request);
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // 恢复中断状态
+                log.error("等待线程中断", e);
             }
-            latch.await(); // 等待所有任务完成
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt(); // 恢复中断状态
-            log.error("等待线程中断", e);
-        } catch (Exception e) {
-            log.error("执行过程中出现异常", e);
+            dtoSet.addAll(goodsDTOPageResult.getItems());
         }
-
-        return dtoSet;
+        redissonService.saveSetExpire(RedisConstant.SAVE_FILE_SET, dtoSet, Duration.ofHours(10));
     }
 
     public void saveFile(Set<GoodsDTO> sets) {
         List<GoodsDTO> lists = new ArrayList<>(sets);
         List<GoodsDTO> result = lists.subList(0, Math.min(lists.size(), 50));
-        //TODO 做一个手动json化，显示中文备注
         String resultText = JsonUtil.toJson(result);
         fileToLocal(resultText);
         log.info("总{}条,过滤剩余{}条", sets.size(), result.size());
@@ -105,7 +93,6 @@ public class BuffJsonServiceImpl implements BuffJsonService {
     private PageResult<GoodsDTO> getGoodsDTOPageResult(DiscountRequest request) {
         Query163Request query163Request = getQuery163Request(request);
         ResultVO<PageResult<GoodsDTO>> resultVO = buffClient.getGoods(query163Request);
-        log.info("{}", ResponseUtil.getDataOrThrow(resultVO).getTotalPage());
         PageResult<GoodsDTO> page = ResponseUtil.getDataOrThrow(resultVO);
         page.getItems().parallelStream().forEach(goods -> {
             double steamPriceCny = goods.getGoodsInfo().getSteamPriceCny();
@@ -124,6 +111,7 @@ public class BuffJsonServiceImpl implements BuffJsonService {
                     .setSteamPriceSellThirdProfit(BigDecimalUtil.evalPrice(steamPriceSellThird - goods.getSellMinPrice()))
                     .setBuffUrl(Constants.URL.formatted(goods.getId()));
         });
+        redissonService.saveSetExpire(RedisConstant.RESULT_SET, Set.of(page.getItems()), Duration.ofDays(10));
         return page;
     }
 

@@ -1,6 +1,7 @@
 package com.steam.discount.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.steam.discount.exception.BizException;
 
 import java.util.List;
 
@@ -11,7 +12,7 @@ public class JsonUtil {
         try {
             return mapper.writeValueAsString(obj);
         } catch (Exception e) {
-            throw new RuntimeException("对象转JSON失败", e);
+            throw new BizException("对象转JSON失败", e);
         }
     }
 
@@ -19,7 +20,7 @@ public class JsonUtil {
         try {
             return mapper.readValue(json, clazz);
         } catch (Exception e) {
-            throw new RuntimeException("JSON转对象失败", e);
+            throw new BizException("JSON转对象失败", e);
         }
     }
 
@@ -27,7 +28,7 @@ public class JsonUtil {
         try {
             return mapper.readValue(json, mapper.getTypeFactory().constructCollectionType(List.class, clazz));
         } catch (Exception e) {
-            throw new RuntimeException("JSON转List失败", e);
+            throw new BizException("JSON转List失败", e);
         }
     }
 

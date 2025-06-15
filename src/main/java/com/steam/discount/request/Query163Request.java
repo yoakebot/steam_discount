@@ -8,6 +8,8 @@ public class Query163Request {
     private String game;
     @JsonProperty("page_num")
     private int pageNum;
+    @JsonProperty("page_size")
+    private int pageSize = 80;
 
     private String rarity;
     @JsonProperty("category_group")
