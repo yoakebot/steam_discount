@@ -1,6 +1,9 @@
 package com.steam.discount.config;
 
+import com.steam.discount.model.ResultVO;
+import com.steam.discount.util.JsonUtil;
 import com.steam.discount.util.ResultVoUtil;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -23,17 +26,20 @@ public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
     @Override
     public Object beforeBodyWrite(@Nullable Object body, @Nullable MethodParameter returnType, @Nullable MediaType selectedContentType,
                                   @Nullable Class<? extends HttpMessageConverter<?>> selectedConverterType,
-                                  @Nullable ServerHttpRequest request, @Nullable ServerHttpResponse response) {
+                                  @NotNull ServerHttpRequest request, @Nullable ServerHttpResponse response) {
         String path = request.getURI().getPath();
-
         if (isSwaggerRequest(path)) {
-            return body; // 不做任何包装
+            return body;
         }
 
         if (body instanceof String) {
-            return ResultVoUtil.success(body);
+            return JsonUtil.toJson(ResultVoUtil.success(body));
         }
-        return body;
+
+        if (body instanceof ResultVO<?>) {
+            return body;
+        }
+        return ResultVoUtil.success(body);
     }
 
     private boolean isSwaggerRequest(String path) {

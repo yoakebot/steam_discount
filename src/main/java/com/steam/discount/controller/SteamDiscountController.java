@@ -41,14 +41,14 @@ public class SteamDiscountController {
 
     @Operation(summary = "设置cookies")
     @GetMapping("/setCookies")
-    public String setCookies(@ParameterObject SetCookiesRequest request) {
+    public Object setCookies(@ParameterObject SetCookiesRequest request) {
         redissonService.saveList(RedisConstant.COOKIES, List.of(request.getCsrfToken(), request.getSession()));
         return "OK";
     }
 
     @Operation(summary = "开始折扣缓存")
     @GetMapping("/startCache")
-    public String getDiscount(@ParameterObject DiscountRequest request) {
+    public Object getDiscount(@ParameterObject DiscountRequest request) {
         buffJsonService.getGoods(request);
         return "OK";
     }

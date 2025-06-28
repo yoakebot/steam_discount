@@ -29,7 +29,7 @@ public class IndexController {
     }
 
     @GetMapping("/index")
-    public String index() {
+    public Object index() {
         return Arrays.toString(environment.getActiveProfiles());
     }
 
@@ -45,8 +45,8 @@ public class IndexController {
 
     @Operation(summary = "测试post")
     @PostMapping({"/post", "/post/{id}"})
-    public String post(@PathVariable(required = false) String id) {
-        return id;
+    public Object post(@PathVariable(required = false) String id) {
+        return id + "success";
     }
 
 
