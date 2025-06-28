@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,7 +39,7 @@ public class SteamDiscountController {
     @Resource
     private RedisTemplate<String, List<GoodsDTO>> redisTemplate;
 
-    @Operation(summary = "开始折扣缓存")
+    @Operation(summary = "设置cookies")
     @GetMapping("/setCookies")
     public String setCookies(@ParameterObject SetCookiesRequest request) {
         redissonService.saveList(RedisConstant.COOKIES, List.of(request.getCsrfToken(), request.getSession()));
@@ -49,13 +48,12 @@ public class SteamDiscountController {
 
     @Operation(summary = "开始折扣缓存")
     @GetMapping("/startCache")
-    @Cacheable(cacheNames = "getDiscount", key = "#request.toString()")
     public String getDiscount(@ParameterObject DiscountRequest request) {
         buffJsonService.getGoods(request);
         return "OK";
     }
 
-    @Operation(summary = "获取折扣")
+    @Operation(summary = "获取折扣分页")
     @GetMapping("/page")
     public Set<GoodsDTO> page() {
         return redissonService.getSet(RedisConstant.RESULT_SET);
@@ -68,8 +66,8 @@ public class SteamDiscountController {
         buffJsonService.saveFile(sets);
     }
 
-    @GetMapping("/rank")
-    public List<GoodsDTO> getRank() {
+    @GetMapping("/getAll")
+    public List<GoodsDTO> getAll() {
         return redisTemplate.opsForValue().get(RedisConstant.SAVE_FILE_SET);
     }
 }

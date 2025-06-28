@@ -22,14 +22,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.Executor;
 
 /**
@@ -66,25 +64,34 @@ public class BuffJsonServiceImpl implements BuffJsonService {
         PageResult<GoodsDTO> page = getGoodsDTOPageResult(request);
         Set<GoodsDTO> dtoSet = new TreeSet<>(page.getItems());
         int totalPage = page.getTotalPage();
-        log.info("共{}页", totalPage);
         int startPage = pageNum + 1;
+        long sleepTime = 2000L;
         for (int i = startPage; i <= totalPage; i++) {
+            log.info("--------------第{}页，共{}页，间隔{}ms----------------", i, totalPage, sleepTime);
             request.setPageNum(i);
-            PageResult<GoodsDTO> goodsDTOPageResult = getGoodsDTOPageResult(request);
+            PageResult<GoodsDTO> goodsDTOPageResult = null;
             try {
-                Thread.sleep(2000);
+                goodsDTOPageResult = getGoodsDTOPageResult(request);
+            } catch (Exception e) {
+                log.warn("{}", e.getMessage());
+                sleepTime += 1000;
+            }
+            try {
+                Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt(); // 恢复中断状态
                 log.error("等待线程中断", e);
             }
-            dtoSet.addAll(goodsDTOPageResult.getItems());
+            List<GoodsDTO> goodsDTOS = Optional.ofNullable(goodsDTOPageResult).map(PageResult::getItems).orElse(Collections.emptyList());
+            dtoSet.addAll(goodsDTOS);
+            sleepTime = sleepTime > 2000 ? sleepTime - 250 : sleepTime;
         }
         redissonService.saveSetExpire(RedisConstant.SAVE_FILE_SET, dtoSet, Duration.ofHours(10));
     }
 
     public void saveFile(Set<GoodsDTO> sets) {
         List<GoodsDTO> lists = new ArrayList<>(sets);
-        List<GoodsDTO> result = lists.subList(0, Math.min(lists.size(), 50));
+        List<GoodsDTO> result = lists.parallelStream().filter(l -> l.getBugNum() > 20 && l.getSellNum() > 20).toList();
         String resultText = JsonUtil.toJson(result);
         fileToLocal(resultText);
         log.info("总{}条,过滤剩余{}条", sets.size(), result.size());
@@ -111,22 +118,23 @@ public class BuffJsonServiceImpl implements BuffJsonService {
                     .setSteamPriceSellThirdProfit(BigDecimalUtil.evalPrice(steamPriceSellThird - goods.getSellMinPrice()))
                     .setBuffUrl(Constants.URL.formatted(goods.getId()));
         });
-        redissonService.saveSetExpire(RedisConstant.RESULT_SET, Set.of(page.getItems()), Duration.ofDays(10));
+        Set<GoodsDTO> sets = new TreeSet<>(page.getItems());
+        redissonService.saveSetExpire(RedisConstant.RESULT_SET, sets, Duration.ofDays(10));
         return page;
     }
 
     private static Query163Request getQuery163Request(DiscountRequest request) {
         Query163Request query163Request = new Query163Request();
         query163Request.setGame("csgo");
-        query163Request.setPageNum(request.getPageNum());
-        query163Request.setCategoryGroup(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
+        query163Request.setPage_num(request.getPageNum());
+        query163Request.setCategory_group(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
         query163Request.setRarity(EnumUtil.getDesc(request.getRarity(), RarityEnum.class));
         query163Request.setQuality(EnumUtil.getDesc(request.getQuality(), QualityEnum.class));
-        query163Request.setExterior(EnumUtil.getDesc(request.getExterior(), ExteriorEnum.class));
+        if (StringUtils.hasText(EnumUtil.getDesc(request.getExterior(), ExteriorEnum.class)))
+            query163Request.setExterior(EnumUtil.getDesc(request.getExterior(), ExteriorEnum.class));
         query163Request.setTab("selling");
-        query163Request.setMinPrice(request.getMinPrice());
-        query163Request.setMaxPrice(request.getMaxPrice());
-        query163Request.setTimestamp(System.currentTimeMillis());
+        query163Request.setMin_price(request.getMinPrice());
+        query163Request.setMax_price(request.getMaxPrice());
         return query163Request;
     }
 

@@ -4,9 +4,11 @@ import com.steam.discount.model.ResultVO;
 import com.steam.discount.util.ResultVoUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.core.env.Environment;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -20,9 +22,15 @@ import java.util.List;
 @RestController
 public class IndexController {
 
+    private final Environment environment;
+
+    public IndexController(Environment environment) {
+        this.environment = environment;
+    }
+
     @GetMapping("/index")
     public String index() {
-        return "index";
+        return Arrays.toString(environment.getActiveProfiles());
     }
 
 

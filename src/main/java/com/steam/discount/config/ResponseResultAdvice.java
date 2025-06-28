@@ -1,6 +1,5 @@
 package com.steam.discount.config;
 
-import com.steam.discount.model.ResultVO;
 import com.steam.discount.util.ResultVoUtil;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
@@ -16,6 +15,7 @@ public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
 
     @Override
     public boolean supports(@Nullable MethodParameter returnType, @Nullable Class<? extends HttpMessageConverter<?>> converterType) {
+
         return true;
     }
 
@@ -24,9 +24,24 @@ public class ResponseResultAdvice implements ResponseBodyAdvice<Object> {
     public Object beforeBodyWrite(@Nullable Object body, @Nullable MethodParameter returnType, @Nullable MediaType selectedContentType,
                                   @Nullable Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   @Nullable ServerHttpRequest request, @Nullable ServerHttpResponse response) {
-        if (body instanceof ResultVO) {
-            return body;
+        String path = request.getURI().getPath();
+
+        if (isSwaggerRequest(path)) {
+            return body; // 不做任何包装
         }
-        return ResultVoUtil.success(body);
+
+        if (body instanceof String) {
+            return ResultVoUtil.success(body);
+        }
+        return body;
+    }
+
+    private boolean isSwaggerRequest(String path) {
+        return path.startsWith("/swagger")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/v2/api-docs")
+                || path.startsWith("/doc.html")
+                || path.startsWith("/swagger-resources")
+                || path.startsWith("/webjars");
     }
 }

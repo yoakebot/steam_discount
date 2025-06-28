@@ -12,7 +12,7 @@ public class DiscountRequest {
     @Schema(description = "取总页数")
     private int pageTotal;
 
-    @Schema(description = "最小金额", defaultValue = "50")
+    @Schema(description = "最小金额", defaultValue = "200")
     private double minPrice;
 
     @Schema(description = "最大金额", defaultValue = "300")
@@ -44,7 +44,7 @@ public class DiscountRequest {
               10: 奇异
               11: 高级
               12: 普通级
-            """, defaultValue = "0")
+            """, defaultValue = "2")
     private Integer rarity;
 
     @Schema(description = """
@@ -71,19 +71,4 @@ public class DiscountRequest {
               6: 无涂装
             """, defaultValue = "0")
     private Integer exterior;
-
-    @Override
-    public String toString() {
-        return "DiscountRequest{" +
-                "exterior=" + exterior +
-                ", categoryGroup=" + categoryGroup +
-                ", rarity=" + rarity +
-                ", quality=" + quality +
-                ", customDiscount=" + customDiscount +
-                ", maxPrice=" + maxPrice +
-                ", minPrice=" + minPrice +
-                ", pageTotal=" + pageTotal +
-                ", pageNum=" + pageNum +
-                '}';
-    }
 }

@@ -6,22 +6,17 @@ import lombok.Data;
 @Data
 public class Query163Request {
     private String game;
-    @JsonProperty("page_num")
-    private int pageNum;
-    @JsonProperty("page_size")
-    private int pageSize = 80;
+    private int page_num;
+    private int page_size = 80;
 
     private String rarity;
-    @JsonProperty("category_group")
-    private String categoryGroup;
+    private String category_group;
     private String quality;
     private String exterior;
     private String tab;
     @JsonProperty("min_price")
-    private double minPrice;
+    private double min_price;
 
     @JsonProperty("max_price")
-    private double maxPrice;
-    @JsonProperty("_")
-    private long timestamp;
+    private double max_price;
 }

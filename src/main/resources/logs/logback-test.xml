@@ -50,6 +50,7 @@
     <!-- 日志级别控制 -->
     <logger name="org.springframework" level="INFO"/>
     <logger name="com.steam.discount" level="INFO"/>
+    <logger name="com.steam.discount.client" level="DEBUG"/>
 
     <!-- 根日志配置 -->
     <root level="INFO">
