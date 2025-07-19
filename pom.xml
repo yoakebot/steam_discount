@@ -20,6 +20,8 @@
         <lombok.version>1.18.32</lombok.version>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
         <spring.boot.maven.plugin.version>3.1.0</spring.boot.maven.plugin.version>
+        <maven.deploy.plugin.version>3.1.1</maven.deploy.plugin.version>
+        <maven.resources.plugin.version>3.3.1</maven.resources.plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -104,7 +106,7 @@
 
     <build>
         <filters>
-            <filter>src/main/prop/${env}.properties</filter>
+            <filter>src/main/resources/prop/${env}.properties</filter>
         </filters>
 
         <resources>
@@ -139,6 +141,7 @@
                 <configuration>
                     <skip>true</skip>
                 </configuration>
+                <version>${maven.deploy.plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -146,6 +149,7 @@
                 <configuration>
                     <encoding>UTF-8</encoding>
                 </configuration>
+                <version>${maven.resources.plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
