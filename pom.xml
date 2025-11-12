@@ -167,6 +167,7 @@
                     <compilerArgs>
                         <arg>--release</arg>
                         <arg>${java.version}</arg>
+                        <arg>-parameters</arg>
                     </compilerArgs>
                     <annotationProcessorPaths>
                         <path>

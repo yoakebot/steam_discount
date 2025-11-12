@@ -6,11 +6,11 @@ import java.time.LocalDateTime;
 
 public record Boy(
         @Schema(description = "id")
-        String id,
+        Integer id,
         String name,
         String city,
         LocalDateTime time) {
-    public Boy(String id, String name, String city) {
+    public Boy(Integer id, String name, String city) {
         this(id, name, city, LocalDateTime.now());
     }
 }
