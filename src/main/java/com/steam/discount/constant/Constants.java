@@ -2,8 +2,7 @@ package com.steam.discount.constant;
 
 public class Constants {
 
-    public static final String URL = "https://buff.163.com/market/goods?goods_id=%s&from=market#tab=selling";
-
+    public static final String URL = "https://buff.163.com/goods/%s#tab=selling";
 
     private Constants() {
     }

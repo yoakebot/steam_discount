@@ -64,4 +64,8 @@ public class RedissonService {
         RSet<T> rList = redissonClient.getSet(key);
         return new TreeSet<>(rList);
     }
+
+    public boolean deleteKey(String key) {
+        return redissonClient.getKeys().delete(key) > 0;
+    }
 }

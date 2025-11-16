@@ -57,7 +57,7 @@ public class DiscountRequest {
               7: 机枪
               8: 印花
               9: 探员
-              10: 其他
+              10: 武器箱
             """, defaultValue = "3")
     private Integer categoryGroup;
 

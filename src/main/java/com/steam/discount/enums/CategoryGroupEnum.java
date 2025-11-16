@@ -14,7 +14,7 @@ public enum CategoryGroupEnum implements CommonEnum {
     MACHINE_GUN(7, "machinegun"),
     STICKER(8, "sticker"),
     TYPE_CUSTOM_PLAYER(9, "type_customplayer"),
-    OTHER(10, "other");
+    CSGO_TYPE_WEAPONCASE(10, "csgo_type_weaponcase");
 
 
     private final int code;

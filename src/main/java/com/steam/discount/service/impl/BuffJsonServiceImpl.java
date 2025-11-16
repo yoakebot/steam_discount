@@ -58,33 +58,33 @@ public class BuffJsonServiceImpl implements BuffJsonService {
 
     @Async
     @Override
-    public void getGoods(DiscountRequest request) {
+    public void getGoods(DiscountRequest request) throws InterruptedException {
         int pageNum = 1;
         request.setPageNum(pageNum);
         PageResult<GoodsDTO> page = getGoodsDTOPageResult(request);
         Set<GoodsDTO> dtoSet = new TreeSet<>(page.getItems());
         int totalPage = page.getTotalPage();
         int startPage = pageNum + 1;
-        long sleepTime = 2000L;
+        long sleepTime = 1000L;
         for (int i = startPage; i <= totalPage; i++) {
+            if (request.getPageTotal() != 0 && i > request.getPageTotal()) {
+                break;
+            }
+            sleepTime = sleepTime > 1000 ? sleepTime - 250 : sleepTime;
             log.info("--------------第{}页，共{}页，间隔{}ms----------------", i, totalPage, sleepTime);
             request.setPageNum(i);
-            PageResult<GoodsDTO> goodsDTOPageResult = null;
+            PageResult<GoodsDTO> goodsDTOPageResult;
             try {
                 goodsDTOPageResult = getGoodsDTOPageResult(request);
             } catch (Exception e) {
                 log.warn("{}", e.getMessage());
-                sleepTime += 1000;
+                sleepTime += 1250;
+                Thread.sleep(4000);
+                goodsDTOPageResult = getGoodsDTOPageResult(request);
             }
-            try {
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt(); // 恢复中断状态
-                log.error("等待线程中断", e);
-            }
-            List<GoodsDTO> goodsDTOS = Optional.ofNullable(goodsDTOPageResult).map(PageResult::getItems).orElse(Collections.emptyList());
+            Thread.sleep(sleepTime);
+            List<GoodsDTO> goodsDTOS = Optional.of(goodsDTOPageResult).map(PageResult::getItems).orElse(Collections.emptyList());
             dtoSet.addAll(goodsDTOS);
-            sleepTime = sleepTime > 2000 ? sleepTime - 250 : sleepTime;
         }
         redissonService.saveSetExpire(RedisConstant.SAVE_FILE_SET, dtoSet, Duration.ofHours(10));
     }
@@ -103,11 +103,11 @@ public class BuffJsonServiceImpl implements BuffJsonService {
         PageResult<GoodsDTO> page = ResponseUtil.getDataOrThrow(resultVO);
         page.getItems().parallelStream().forEach(goods -> {
             double steamPriceCny = goods.getGoodsInfo().getSteamPriceCny();
-            double discount = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / goods.getGoodsInfo().getSteamPriceCny());
+            double discount = BigDecimalUtil.evalDiscount(goods.getSellMinPrice(), goods.getGoodsInfo().getSteamPriceCny());
             double steamBalanceAfterTax = BigDecimalUtil.evalPrice(steamPriceCny * 0.8695);
-            double discountAfterTax = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / steamBalanceAfterTax);
+            double discountAfterTax = BigDecimalUtil.evalDiscount(goods.getSellMinPrice(), steamBalanceAfterTax);
             double steamPriceSellThird = BigDecimalUtil.evalPrice(steamBalanceAfterTax * request.getCustomDiscount());
-            double discountSellThird = BigDecimalUtil.evalDiscount(goods.getSellMinPrice() / steamPriceSellThird);
+            double discountSellThird = BigDecimalUtil.evalDiscount(goods.getSellMinPrice(), steamPriceSellThird);
             goods.setSteamPriceCnyProfit(BigDecimalUtil.evalPrice(steamPriceCny - goods.getSellMinPrice()))
                     .setDiscount(discount)
                     .setDiscountAfterTax(discountAfterTax)
@@ -127,7 +127,11 @@ public class BuffJsonServiceImpl implements BuffJsonService {
         Query163Request query163Request = new Query163Request();
         query163Request.setGame("csgo");
         query163Request.setPage_num(request.getPageNum());
-        query163Request.setCategory_group(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
+        if (Objects.equals(request.getCategoryGroup(), 10)) {
+            query163Request.setCategory(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
+        } else {
+            query163Request.setCategory_group(EnumUtil.getDesc(request.getCategoryGroup(), CategoryGroupEnum.class));
+        }
         query163Request.setRarity(EnumUtil.getDesc(request.getRarity(), RarityEnum.class));
         query163Request.setQuality(EnumUtil.getDesc(request.getQuality(), QualityEnum.class));
         if (StringUtils.hasText(EnumUtil.getDesc(request.getExterior(), ExteriorEnum.class)))

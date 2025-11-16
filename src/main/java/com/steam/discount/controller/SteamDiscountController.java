@@ -1,11 +1,13 @@
 package com.steam.discount.controller;
 
 import com.steam.discount.model.GoodsDTO;
+import com.steam.discount.model.ResultVO;
 import com.steam.discount.redis.RedisConstant;
 import com.steam.discount.redis.RedissonService;
 import com.steam.discount.request.DiscountRequest;
 import com.steam.discount.request.SetCookiesRequest;
 import com.steam.discount.service.BuffJsonService;
+import com.steam.discount.util.ResultVoUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
@@ -42,21 +44,21 @@ public class SteamDiscountController {
     @Operation(summary = "设置cookies")
     @GetMapping("/setCookies")
     public Object setCookies(@ParameterObject SetCookiesRequest request) {
-        redissonService.saveList(RedisConstant.COOKIES, List.of(request.getCsrfToken(), request.getSession()));
+        redissonService.saveList(RedisConstant.COOKIES, List.of(request.getSession()));
         return "OK";
     }
 
     @Operation(summary = "开始折扣缓存")
     @GetMapping("/startCache")
-    public Object getDiscount(@ParameterObject DiscountRequest request) {
+    public Object getDiscount(@ParameterObject DiscountRequest request) throws InterruptedException {
         buffJsonService.getGoods(request);
         return "OK";
     }
 
     @Operation(summary = "获取折扣分页")
     @GetMapping("/page")
-    public Set<GoodsDTO> page() {
-        return redissonService.getSet(RedisConstant.RESULT_SET);
+    public ResultVO<Set<GoodsDTO>> page() {
+        return ResultVoUtil.success(redissonService.getSet(RedisConstant.RESULT_SET));
     }
 
     @Operation(summary = "缓存保存")
@@ -69,5 +71,13 @@ public class SteamDiscountController {
     @GetMapping("/getAll")
     public List<GoodsDTO> getAll() {
         return redisTemplate.opsForValue().get(RedisConstant.SAVE_FILE_SET);
+    }
+
+    @Operation(summary = "清除缓存")
+    @GetMapping("/clear")
+    public Object clear() {
+        redissonService.deleteKey(RedisConstant.SAVE_FILE_SET);
+        redissonService.deleteKey(RedisConstant.RESULT_SET);
+        return "OK";
     }
 }

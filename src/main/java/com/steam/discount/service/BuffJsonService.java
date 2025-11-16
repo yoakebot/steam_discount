@@ -14,7 +14,7 @@ import java.util.Set;
  */
 public interface BuffJsonService {
 
-    void getGoods(DiscountRequest request);
+    void getGoods(DiscountRequest request) throws InterruptedException;
 
     void saveFile(Set<GoodsDTO> sets);
 }
