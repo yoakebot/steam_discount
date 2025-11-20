@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <link href="C://Users/yoake//Pictures//pic//ico//kagami.ico" rel="shortcut icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUFF饰品折扣数据分析</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            max-width: 98%;
+            margin: 0 auto;
+            background: #16213e;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 22px;
+            margin-bottom: 3px;
+        }
+        .header p {
+            font-size: 13px;
+        }
+        .port-config {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .port-config label {
+            font-size: 13px;
+            color: white;
+            margin: 0;
+        }
+        .port-config input {
+            width: 100px;
+            padding: 5px 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-size: 13px;
+        }
+        .port-config input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+        .section {
+            padding: 25px;
+            border-bottom: 1px solid #2d3561;
+            background: #16213e;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .section-title {
+            font-size: 20px;
+            color: #64b5f6;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-size: 13px;
+            color: #b0b8c9;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, select {
+            padding: 10px;
+            border: 1px solid #2d3561;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: #0f1626;
+            color: #e0e0e0;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        .message.success {
+            background: #1b5e20;
+            color: #a5d6a7;
+            border: 1px solid #2e7d32;
+        }
+        .message.error {
+            background: #b71c1c;
+            color: #ef9a9a;
+            border: 1px solid #c62828;
+        }
+        .table-wrapper {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            table-layout: fixed;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 4px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            font-size: 11px;
+        }
+        th:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #65408b 100%);
+        }
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0.5;
+        }
+        th.sort-asc::after {
+            content: ' ↑';
+            opacity: 1;
+        }
+        th.sort-desc::after {
+            content: ' ↓';
+            opacity: 1;
+        }
+        td {
+            padding: 8px 4px;
+            border-bottom: 1px solid #2d3561;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: #0f1626;
+            color: #e0e0e0;
+        }
+        td.name-column {
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.3;
+        }
+        th:nth-child(1), td:nth-child(1) { width: 3%; }
+        th:nth-child(2), td:nth-child(2) { width: 15%; }
+        th:nth-child(3), td:nth-child(3) { width: 5%; }
+        th:nth-child(4), td:nth-child(4) { width: 4%; }
+        th:nth-child(5), td:nth-child(5) { width: 5%; }
+        th:nth-child(6), td:nth-child(6) { width: 5%; }
+        th:nth-child(7), td:nth-child(7) { width: 5%; }
+        th:nth-child(8), td:nth-child(8) { width: 5%; }
+        th:nth-child(9), td:nth-child(9) { width: 5%; }
+        th:nth-child(10), td:nth-child(10) { width: 5%; }
+        th:nth-child(11), td:nth-child(11) { width: 5%; }
+        th:nth-child(12), td:nth-child(12) { width: 4%; }
+        th:nth-child(13), td:nth-child(13) { width: 5%; }
+        th:nth-child(14), td:nth-child(14) { width: 5%; }
+        th:nth-child(15), td:nth-child(15) { width: 4%; }
+        th:nth-child(16), td:nth-child(16) { width: 5%; }
+        th:nth-child(17), td:nth-child(17) { width: 6%; }
+        tr:hover td {
+            background: #1a2332;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64b5f6;
+            font-size: 16px;
+        }
+        a {
+            color: #64b5f6;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .name-column a {
+            color: #64b5f6; /* 未访问前颜色 */
+            text-decoration: underline;
+        }
+
+        .name-column a:visited {
+            color: #9b59b6; /* 访问过后的颜色 */
+        }
+
+        /* 弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #16213e;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 20px;
+            color: #64b5f6;
+            font-weight: 600;
+        }
+        .close-btn {
+            background: transparent;
+            color: #b0b8c9;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 1;
+            transition: color 0.3s;
+            margin: 0;
+        }
+        .close-btn:hover {
+            color: #fff;
+            transform: none;
+            box-shadow: none;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BUFF饰品折扣数据分析</h1>
+            <div class="port-config">
+                <label>服务端口：</label>
+                <input type="number" id="portInput" value="8080" placeholder="8080" min="1" max="65535">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">折扣数据</div>
+            <button type="button" id="openCookiesModalBtn">Cookies配置</button>
+            <button type="button" id="openModalBtn">折扣缓存配置</button>
+            <button type="button" id="clearBtn">清除缓存</button>
+            <button type="button" id="refreshBtn">刷新数据</button>
+            <div id="loadMessage" class="message"></div>
+            <div id="tableContainer"></div>
+        </div>
+    </div>
+
+    <!-- Cookies弹窗 -->
+    <div id="cookiesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Cookies配置</div>
+                <button type="button" class="close-btn" id="closeCookiesModalBtn">&times;</button>
+            </div>
+            <form id="cookiesForm">
+                <div class="form-group">
+                    <label>Session</label>
+                    <input type="text" id="session" placeholder="请输入session">
+                </div>
+                <button type="submit" style="margin-top: 20px;">保存设置</button>
+                <div id="cookiesMessage" class="message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 缓存弹窗 -->
+    <div id="cacheModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">折扣缓存配置</div>
+                <button type="button" class="close-btn" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="cacheForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>总页数</label>
+                        <input type="number" id="pageTotal" value="20" placeholder="请输入总页数">
+                    </div>
+                    <div class="form-group">
+                        <label>最小金额</label>
+                        <input type="number" step="0.01" id="minPrice" value="100" placeholder="请输入最小金额">
+                    </div>
+                    <div class="form-group">
+                        <label>最大金额</label>
+                        <input type="number" step="0.01" id="maxPrice" value="300" placeholder="请输入最大金额">
+                    </div>
+                    <div class="form-group">
+                        <label>折扣</label>
+                        <input type="number" step="0.01" id="customDiscount" value="0.8" placeholder="请输入折扣">
+                    </div>
+                    <div class="form-group">
+                        <label>类别</label>
+                        <select id="quality">
+                            <option value="0">不限类别</option>
+                            <option value="1">普通</option>
+                            <option value="2">纪念品</option>
+                            <option value="3">StatTrak™</option>
+                            <option value="4">★</option>
+                            <option value="5">★ StatTrak™</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>品质</label>
+                        <select id="rarity">
+                            <option value="0">不限品质</option>
+                            <option value="1">违禁</option>
+                            <option value="2">隐秘</option>
+                            <option value="3">保密</option>
+                            <option value="4">受限</option>
+                            <option value="5">军规级</option>
+                            <option value="6">工业级</option>
+                            <option value="7">消费级</option>
+                            <option value="8">非凡</option>
+                            <option value="9">卓越</option>
+                            <option value="10">奇异</option>
+                            <option value="11">高级</option>
+                            <option value="12">普通级</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>分组</label>
+                        <select id="categoryGroup">
+                            <option value="">请选择</option>
+                            <option value="1">匕首</option>
+                            <option value="2">手套</option>
+                            <option value="3">步枪</option>
+                            <option value="4">手枪</option>
+                            <option value="5">微型冲锋枪</option>
+                            <option value="6">霰弹枪</option>
+                            <option value="7">机枪</option>
+                            <option value="8">印花</option>
+                            <option value="9">探员</option>
+                            <option value="10">武器箱</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>外观</label>
+                        <select id="exterior">
+                            <option value="0">不限外观</option>
+                            <option value="1">崭新出厂</option>
+                            <option value="2">略有磨损</option>
+                            <option value="3">久经沙场</option>
+                            <option value="4">破损不堪</option>
+                            <option value="5">战痕累累</option>
+                            <option value="6">无涂装</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit">开始缓存</button>
+                <div id="cacheMessage" class="message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let PORT = 8080;
+        let HOST = `http://localhost:${PORT}`;
+        let currentData = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+
+        // 监听端口输入变化
+        const portInput = document.getElementById('portInput');
+        portInput.addEventListener('input', (e) => {
+            PORT = parseInt(e.target.value) || 8080;
+            HOST = `http://localhost:${PORT}`;
+        });
+
+        // 弹窗控制
+        const modal = document.getElementById('cacheModal');
+        const openModalBtn = document.getElementById('openModalBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        const cookiesModal = document.getElementById('cookiesModal');
+        const openCookiesModalBtn = document.getElementById('openCookiesModalBtn');
+        const closeCookiesModalBtn = document.getElementById('closeCookiesModalBtn');
+
+        // 缓存弹窗
+        openModalBtn.addEventListener('click', () => {
+            modal.classList.add('show');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            modal.classList.remove('show');
+        });
+
+        // Cookies弹窗
+        openCookiesModalBtn.addEventListener('click', () => {
+            cookiesModal.classList.add('show');
+        });
+
+        closeCookiesModalBtn.addEventListener('click', () => {
+            cookiesModal.classList.remove('show');
+        });
+
+        // 点击弹窗外部关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('show');
+            }
+        });
+
+        cookiesModal.addEventListener('click', (e) => {
+            if (e.target === cookiesModal) {
+                cookiesModal.classList.remove('show');
+            }
+        });
+
+        // ESC键关闭弹窗
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (modal.classList.contains('show')) {
+                    modal.classList.remove('show');
+                }
+                if (cookiesModal.classList.contains('show')) {
+                    cookiesModal.classList.remove('show');
+                }
+            }
+        });
+
+        // Cookies表单提交
+        document.getElementById('cookiesForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const params = new URLSearchParams();
+            
+            const session = document.getElementById('session').value;
+            
+            if (session) params.append('session', session);
+
+            const msg = document.getElementById('cookiesMessage');
+            msg.style.display = 'none';
+
+            try {
+                const response = await fetch(`${HOST}/setCookies?${params.toString()}`);
+                const data = await response.json();
+                
+                // 如果成功，立刻关闭弹窗
+                if (data.code === 'OK' || response.ok) {
+                    cookiesModal.classList.remove('show');
+                    msg.style.display = 'none';
+                } else {
+                    msg.textContent = data.msg || data.data || 'Cookies设置失败';
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                }
+            } catch (error) {
+                msg.textContent = '请求失败: ' + error.message;
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        });
+
+        // 缓存表单提交
+        document.getElementById('cacheForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const params = new URLSearchParams();
+            
+            const fields = ['pageTotal', 'minPrice', 'maxPrice', 'customDiscount', 'quality', 'rarity', 'categoryGroup', 'exterior'];
+            fields.forEach(field => {
+                const value = document.getElementById(field).value;
+                if (value !== '') {
+                    params.append(field, value);
+                }
+            });
+
+            const msg = document.getElementById('cacheMessage');
+            msg.style.display = 'none';
+
+            try {
+                const response = await fetch(`${HOST}/startCache?${params.toString()}`);
+                const data = await response.json();
+                
+                // 如果成功，立刻关闭弹窗并刷新数据
+                if (data.code === 'OK' || response.ok) {
+                    modal.classList.remove('show');
+                    msg.style.display = 'none';
+                    loadData(); // 立即刷新数据
+                } else {
+                    msg.textContent = data.msg || data.data || '缓存启动失败';
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                }
+            } catch (error) {
+                msg.textContent = '请求失败: ' + error.message;
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        });
+
+        // 加载数据
+        async function loadData() {
+            const container = document.getElementById('tableContainer');
+            const msg = document.getElementById('loadMessage');
+            msg.style.display = 'none';
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${HOST}/page`);
+                const result = await response.json();
+                
+                if (result.code === 'OK' && result.data) {
+                    currentData = result.data;
+                    renderTable(currentData);
+                } else {
+                    container.innerHTML = '';
+                    msg.textContent = result.msg || '加载失败';
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                }
+            } catch (error) {
+                container.innerHTML = '';
+                msg.textContent = '请求失败: ' + error.message;
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        }
+
+        function renderTable(data) {
+            const container = document.getElementById('tableContainer');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="loading">暂无数据</div>';
+                return;
+            }
+
+            let html = '<div class="table-wrapper"><table><thead><tr>';
+            html += '<th class="sortable" data-column="index" data-type="number">#</th>';
+            
+            const columns = [
+                { key: 'name', label: '名称', type: 'text' },
+                { key: 'discount', label: '折扣', type: 'number' },
+                { key: 'quick_price', label: 'Buff快速出售价', type: 'number' },
+                { key: 'sell_min_price', label: 'Buff最低价', type: 'number' },
+                { key: 'buy_max_price', label: 'Buff最高求购价', type: 'number' },
+                { key: 'buy_num', label: 'Buff求购数', type: 'number' },
+                { key: 'sell_num', label: 'Buff出售数', type: 'number' },
+                { key: 'steam_price_cny', label: 'Steam收购价', type: 'number' },
+                { key: 'steamPriceCnyProfit', label: 'Steam收购利润', type: 'number' },
+                { key: 'discountAfterTax', label: '税后折扣', type: 'number' },
+                { key: 'steamBalanceAfterTax', label: '税后余额', type: 'number' },
+                { key: 'steamBalanceAfterTaxProfit', label: '税后利润', type: 'number' },
+                { key: 'discountSellThird', label: '出余额折扣', type: 'number' },
+                { key: 'steamPriceSellThird', label: '出余额金额', type: 'number' },
+                { key: 'steamPriceSellThirdProfit', label: '出余额利润', type: 'number' }
+            ];
+
+            columns.forEach(col => {
+                const sortClass = col.type === 'number' ? 'sortable' : '';
+                html += `<th class="${sortClass}" data-column="${col.key}" data-type="${col.type}">${col.label}</th>`;
+            });
+
+            html += '</tr></thead><tbody>';
+
+            data.forEach((item, index) => {
+                html += '<tr>';
+                html += `<td>${index + 1}</td>`;
+
+                html += `<td class="name-column">${
+                    item.buffUrl
+                        ? `<a href="${item.buffUrl}" target="_blank">${item.name || ''}</a>`
+                        : (item.name || '')
+                }</td>`;  // name 加链接
+
+                html += `<td>${item.discount != null ? item.discount.toFixed(2) : ''}</td>`;
+                html += `<td>${item.quick_price != null ? item.quick_price.toFixed(2) : ''}</td>`;
+                html += `<td>${item.sell_min_price != null ? item.sell_min_price.toFixed(2) : ''}</td>`;
+                html += `<td>${item.buy_max_price != null ? item.buy_max_price.toFixed(2) : ''}</td>`;
+                html += `<td>${item.buy_num || ''}</td>`;
+                html += `<td>${item.sell_num || ''}</td>`;
+
+                html += `<td>${item.steam_price_cny != null
+                    ? item.steam_price_cny.toFixed(2)
+                    : (item.goods_info?.steam_price_cny != null
+                        ? item.goods_info.steam_price_cny.toFixed(2)
+                        : '')}</td>`;
+
+                html += `<td>${item.steamPriceCnyProfit != null ? item.steamPriceCnyProfit.toFixed(2) : ''}</td>`;
+                html += `<td>${item.discountAfterTax != null ? item.discountAfterTax.toFixed(2) : ''}</td>`;
+                html += `<td>${item.steamBalanceAfterTax != null ? item.steamBalanceAfterTax.toFixed(2) : ''}</td>`;
+                html += `<td>${item.steamBalanceAfterTaxProfit != null ? item.steamBalanceAfterTaxProfit.toFixed(2) : ''}</td>`;
+
+                html += `<td>${item.discountSellThird != null ? item.discountSellThird.toFixed(2) : ''}</td>`;
+                html += `<td>${item.steamPriceSellThird != null ? item.steamPriceSellThird.toFixed(2) : ''}</td>`;
+                html += `<td>${item.steamPriceSellThirdProfit != null ? item.steamPriceSellThirdProfit.toFixed(2) : ''}</td>`;
+
+                html += '</tr>';
+            });
+
+
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const column = th.dataset.column;
+                    const type = th.dataset.type;
+                    
+                    if (sortColumn === column) {
+                        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        sortColumn = column;
+                        sortDirection = 'asc';
+                    }
+                    
+                    sortData(column, type, sortDirection);
+                    
+                    document.querySelectorAll('th').forEach(h => {
+                        h.classList.remove('sort-asc', 'sort-desc');
+                    });
+                    th.classList.add(`sort-${sortDirection}`);
+                });
+            });
+        }
+
+        function sortData(column, type, direction) {
+            const sorted = [...currentData].sort((a, b) => {
+                let aVal, bVal;
+                
+                if (column === 'index') {
+                    aVal = currentData.indexOf(a) + 1;
+                    bVal = currentData.indexOf(b) + 1;
+                } else if (column === 'steam_price_cny') {
+                    aVal = a.goods_info?.steam_price_cny;
+                    bVal = b.goods_info?.steam_price_cny;
+                } else {
+                    aVal = a[column];
+                    bVal = b[column];
+                }
+
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+
+                if (type === 'number') {
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+                return 0;
+            });
+
+            renderTable(sorted);
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+        // 清除缓存
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            const msg = document.getElementById('loadMessage');
+            msg.style.display = 'none';
+
+            if (!confirm('确定要清除所有缓存吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${HOST}/clear`);
+                const data = await response.json();
+                
+                if (data.code === 'OK' || response.ok) {
+                    // 清除成功后立即刷新数据
+                    loadData();
+                } else {
+                    msg.textContent = data.msg || '缓存清除失败';
+                    msg.className = 'message error';
+                    msg.style.display = 'block';
+                }
+            } catch (error) {
+                msg.textContent = '请求失败: ' + error.message;
+                msg.className = 'message error';
+                msg.style.display = 'block';
+            }
+        });
+
+        // 页面加载时自动调用接口
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

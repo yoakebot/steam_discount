@@ -50,7 +50,7 @@ public class SteamDiscountController {
 
     @Operation(summary = "开始折扣缓存")
     @GetMapping("/startCache")
-    public Object getDiscount(@ParameterObject DiscountRequest request) throws InterruptedException {
+    public Object getDiscount(@ParameterObject DiscountRequest request) {
         buffJsonService.getGoods(request);
         return "OK";
     }

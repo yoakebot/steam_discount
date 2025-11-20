@@ -58,36 +58,53 @@ public class BuffJsonServiceImpl implements BuffJsonService {
 
     @Async
     @Override
-    public void getGoods(DiscountRequest request) throws InterruptedException {
-        int pageNum = 1;
-        request.setPageNum(pageNum);
-        PageResult<GoodsDTO> page = getGoodsDTOPageResult(request);
-        Set<GoodsDTO> dtoSet = new TreeSet<>(page.getItems());
-        int totalPage = page.getTotalPage();
-        int startPage = pageNum + 1;
-        long sleepTime = 1000L;
-        for (int i = startPage; i <= totalPage; i++) {
-            if (request.getPageTotal() != 0 && i > request.getPageTotal()) {
-                break;
+    public void getGoods(DiscountRequest request) {
+        try {
+            int pageNum = 1;
+            request.setPageNum(pageNum);
+
+            PageResult<GoodsDTO> firstPage = getGoodsDTOPageResult(request);
+            int totalPage = firstPage.getTotalPage();
+            Set<GoodsDTO> dtoSet = new TreeSet<>(firstPage.getItems());
+
+            long sleepTime = 1000L;
+            for (int i = 2; i <= totalPage; i++) {
+                if (request.getPageTotal() != 0 && i > request.getPageTotal()) {
+                    break;
+                }
+
+                log.info("-------- 第{}/{}页，间隔{}ms --------", i, totalPage, sleepTime);
+                request.setPageNum(i);
+
+                PageResult<GoodsDTO> page = fetchPageWithRetry(request);
+
+                dtoSet.addAll(page.getItems());
+                Thread.sleep(sleepTime);
+                sleepTime = Math.max(500, sleepTime - 200);
             }
-            sleepTime = sleepTime > 1000 ? sleepTime - 250 : sleepTime;
-            log.info("--------------第{}页，共{}页，间隔{}ms----------------", i, totalPage, sleepTime);
-            request.setPageNum(i);
-            PageResult<GoodsDTO> goodsDTOPageResult;
-            try {
-                goodsDTOPageResult = getGoodsDTOPageResult(request);
-            } catch (Exception e) {
-                log.warn("{}", e.getMessage());
-                sleepTime += 1250;
-                Thread.sleep(4000);
-                goodsDTOPageResult = getGoodsDTOPageResult(request);
-            }
-            Thread.sleep(sleepTime);
-            List<GoodsDTO> goodsDTOS = Optional.of(goodsDTOPageResult).map(PageResult::getItems).orElse(Collections.emptyList());
-            dtoSet.addAll(goodsDTOS);
+
+            redissonService.saveSetExpire(RedisConstant.SAVE_FILE_SET, dtoSet, Duration.ofHours(10));
+            log.info("抓取完成，共 {} 条唯一记录", dtoSet.size());
+        } catch (Exception e) {
+            log.error("商品抓取异常", e);
         }
-        redissonService.saveSetExpire(RedisConstant.SAVE_FILE_SET, dtoSet, Duration.ofHours(10));
+        log.info("-------- END --------");
     }
+
+    private PageResult<GoodsDTO> fetchPageWithRetry(DiscountRequest request) throws InterruptedException {
+        int retryTimes = 2;
+        while (retryTimes-- > 0) {
+            try {
+                return getGoodsDTOPageResult(request);
+            } catch (Exception e) {
+                log.warn("第{}次获取失败：{}", (3 - retryTimes), e.getMessage());
+                Thread.sleep(4000);
+            }
+        }
+        // 最后一次失败，让异常直接抛出去
+        return getGoodsDTOPageResult(request);
+    }
+
 
     public void saveFile(Set<GoodsDTO> sets) {
         List<GoodsDTO> lists = new ArrayList<>(sets);
@@ -101,7 +118,11 @@ public class BuffJsonServiceImpl implements BuffJsonService {
         Query163Request query163Request = getQuery163Request(request);
         ResultVO<PageResult<GoodsDTO>> resultVO = buffClient.getGoods(query163Request);
         PageResult<GoodsDTO> page = ResponseUtil.getDataOrThrow(resultVO);
-        page.getItems().parallelStream().forEach(goods -> {
+        List<GoodsDTO> list = page.getItems().parallelStream().filter(
+                g -> g.getSellNum() >= 10 && g.getBugNum() >= 10 &&
+                        g.getSellMinPrice() - (g.getSellMinPrice() * 0.2) < g.getBuyMaxPrice()
+        ).toList();
+        list.parallelStream().forEach(goods -> {
             double steamPriceCny = goods.getGoodsInfo().getSteamPriceCny();
             double discount = BigDecimalUtil.evalDiscount(goods.getSellMinPrice(), goods.getGoodsInfo().getSteamPriceCny());
             double steamBalanceAfterTax = BigDecimalUtil.evalPrice(steamPriceCny * 0.8695);
@@ -118,7 +139,7 @@ public class BuffJsonServiceImpl implements BuffJsonService {
                     .setSteamPriceSellThirdProfit(BigDecimalUtil.evalPrice(steamPriceSellThird - goods.getSellMinPrice()))
                     .setBuffUrl(Constants.URL.formatted(goods.getId()));
         });
-        Set<GoodsDTO> sets = new TreeSet<>(page.getItems());
+        Set<GoodsDTO> sets = new TreeSet<>(list);
         redissonService.saveSetExpire(RedisConstant.RESULT_SET, sets, Duration.ofDays(10));
         return page;
     }
